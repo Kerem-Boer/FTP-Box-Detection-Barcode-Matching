@@ -5,10 +5,15 @@ import Coordinates
 from datetime import datetime
 import time
 import cv2
+import Dosya_Dinleyici
 
 Local_Path = "C:\\Users\\Kerem\\Desktop\\VSC\\Python\\BOER\\Depo\\" # Local path to download Images
 Model_Path = "C:\\Users\\Kerem\\Desktop\\VSC\\my_model\\my_model.pt" #YOLO model path
-confidence_threshold = 0.5 # Confidence threshold for object detection
+confidence_threshold = 0.8 # Confidence threshold for object detection
+
+server_address = "192.168.0.4"
+username = "boerltd\\stajyer"
+password = "Boer2637#"
 
 FTP_Address = "192.168.0.12"
 FTP_Username = "stajyer"
@@ -39,17 +44,31 @@ def Save_Image(frame, output_path):
     print(f"Image saved: {output_path}")
 
 def main():
-    FTP_Dinleyici.FTP_Login(FTP_Address, FTP_Username, FTP_Password)
+    # FTP_Dinleyici.FTP_Login(FTP_Address, FTP_Username, FTP_Password)
+    Dosya_Dinleyici.SMB_Login(server_address, username, password)
 
     # Loop start
     while True:
-        new_files = FTP_Dinleyici.check_files(FTP_Dinleyici.ftp)
+        # print("Loop start")
+        # new_files = FTP_Dinleyici.check_files(FTP_Dinleyici.ftp)
+        new_files = Dosya_Dinleyici.check_files()
+        # print("File Check")
         if new_files:
+            # print("new file")
             for filename in new_files:
-                while not FTP_Dinleyici.size_check(filename):
+                # print("first for loop")
+                # while not FTP_Dinleyici.size_check(filename):
+                while not Dosya_Dinleyici.is_file_safe_to_process(filename):
+                    # print("size check loop")
                     time.sleep(0.1)
                     # FTP_Dinleyici.print_size(filename)
-                FTP_Dinleyici.download_file(Local_Path , filename)
+                    # Dosya_Dinleyici.print_size(filename)
+                # Dosya_Dinleyici.print_size(filename)
+                # print("out of size check loop")
+                # FTP_Dinleyici.download_file(Local_Path , filename)
+                #print("b4 download")
+                Dosya_Dinleyici.download_file(Local_Path , filename)
+                # print("after download")
             for filename in new_files:
                 if filename.lower().endswith((".png", ".jpg", ".jpeg")):  # Check if file is an image
                     frame = Open_Image(Local_Path + filename)  # Open the image
@@ -58,11 +77,13 @@ def main():
                     processed_frame = Box_Detection.Draw_Boxes(frame, Box_Detection.Boxes)  # Draw boxes on the image
                     new_filename = Update_Filename(filename)
                     Save_Image(processed_frame, Local_Path + new_filename)  # Save the processed image
-                    FTP_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the processed image to FTP
+                    # FTP_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the processed image to FTP
+                    Dosya_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the processed image to SMB
                     # Export box coordinates as .txt file & upload to FTP
                     new_filename = os.path.splitext(new_filename)[0] + ".txt"
                     Box_Detection.Export_Box_Coordinates(Box_Detection.Boxes, Local_Path + new_filename)  # Export box coordinates
-                    FTP_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the box coordinates to FTP
+                    # FTP_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the box coordinates to FTP
+                    Dosya_Dinleyici.upload_file(Local_Path, new_filename)  # Upload the box coordinates to SMB
 
                 elif filename.lower().endswith((".txt", ".csv")):
                     print(f"File is a text or CSV file: {filename}")
