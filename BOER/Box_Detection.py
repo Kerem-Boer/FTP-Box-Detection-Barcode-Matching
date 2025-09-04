@@ -1,6 +1,8 @@
 import os
 import cv2
+# from matplotlib import image
 from ultralytics import YOLO
+import Dynamsoft
 
 global confidence_threshold
 
@@ -65,3 +67,47 @@ def Export_Box_Coordinates(Boxes, output_file):
         for box in Boxes:
             f.write(f"{box.name};{box.confidence};{box.coordinates[0]},{box.coordinates[1]};{box.coordinates[2]},{box.coordinates[3]}\n")
     print(f"Boxes' data has been written to: {output_file}")
+
+def Open_Image(image_path):
+    if not os.path.exists(image_path):
+        print(f"Can not find image: {image_path}")
+        return None
+    image = cv2.imread(image_path)
+    if image is None:
+        print(f"Failed to load image: {image_path}")
+        return None
+    print(f"Image opened: {image_path}")
+    return image
+
+def Crop_Image(image, Boxes,):
+    for i, box in enumerate(Boxes):
+        x1, y1, x2, y2 = box.coordinates
+        cropped = image[y1:y2, x1:x2]
+        cv2.imwrite(f"Cropped_Image_{i}.jpg", cropped)
+
+def Complex_Draw_Box(image,items,box):
+    for item in items:
+        quad = item.get_location()
+        x1, y1, x2, y2 = box.coordinates
+        new_x1, new_y1 = x1 + quad.points[0].x, y1 + quad.points[0].y
+        new_x2, new_y2 = x1 + quad.points[2].x, y1 + quad.points[2].y
+        cv2.rectangle(image, (new_x1, new_y1), (new_x2, new_y2), (255, 0, 0), 2)
+    cv2.imwrite("output.jpg", image)
+    print("Drawed Cx Boxes")
+
+def Add_Child_Barcode(items, box):
+    for item in items:
+        mid_point = Dynamsoft.Find_Mid(item)
+        Child = (f"Format: {item.get_format_string()}; "
+                  f"Text: {item.get_text()}; "
+                  f"Mid: {mid_point}")
+        box.add_child(Child)
+        print(f"Barcode {item.get_text()} is inside box {box.name}")
+
+def Export_Data(output_file):
+    output_file = output_file.replace(".jpg", ".txt")
+    with open(output_file, 'w') as f:
+        for box in Boxes:
+            f.write(str(box) + "\n")
+    print(f"Boxes' data has been written to: {output_file}")
+    return output_file
